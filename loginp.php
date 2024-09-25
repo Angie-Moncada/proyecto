@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
 
         $idlog = $_GET['id_login'];
 
-        $sentencia = $conexion->prepare("SELECT * FROM loginp WHERE id_login LIKE CONCAT(?)");
+        $sentencia = $conexion->prepare("SELECT * FROM loginp WHERE id_login LIKE CONCAT(?'%')");
 
         $sentencia->bind_param('i', $idlog);
 
@@ -122,21 +122,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
         $sentencia->close();
       
 
-    // Si no se proporciona ningun parametro en la URL
+        // Si no se proporciona ningun parametro en la URL
     }else {
+        // Definir el límite de resultados por página (10)
+        $limit = 10;
 
-        $resultado = $conexion->query("SELECT * FROM loginp");
+        // Obtener el número de página de la URL o usar 1 por defecto
+        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 
-        if ($resultado->num_rows > 0) {
+        // Calcular el desplazamiento (offset) basado en la página
+        $offset = ($page - 1) * $limit;
 
-            $fila = $resultado->fetch_all(MYSQLI_ASSOC);
+        // Consulta SQL modificada para la paginación
+        $sentencia = $conexion->prepare("SELECT * FROM loginp LIMIT ? OFFSET ?");
+        $sentencia->bind_param('ii', $limit, $offset);
 
-            echo json_encode(['data' => $fila], JSON_UNESCAPED_UNICODE);
+        $sentencia->execute();
 
-        } else {
+        $resultado = $sentencia->get_result();
 
-            echo json_encode(['error' => 'No se encontraron resultados.'], JSON_UNESCAPED_UNICODE);
-        }
+    if ($resultado->num_rows > 0) {
+        $fila = $resultado->fetch_all(MYSQLI_ASSOC);
+
+        // Devolver datos con información de paginación
+        echo json_encode([
+            'data' => $fila,
+            'page' => $page,
+            'limit' => $limit,
+            'total' => $resultado->num_rows // Total de registros obtenidos en esta página
+        ], JSON_UNESCAPED_UNICODE);
+    } else {
+        echo json_encode(['error' => 'No se encontraron resultados.'], JSON_UNESCAPED_UNICODE);
     }
+
+    $sentencia->close();
+}
 }
 

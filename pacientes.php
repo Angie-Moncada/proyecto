@@ -202,20 +202,39 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
       
 
     // Si no se proporciona ningun parametro en la URL
-    }else {
-
-        $resultado = $conexion->query("SELECT * FROM pacientes");
-
+    }  else {
+        // Definir el límite de resultados por página (en este caso, 10)
+        $limit = 10;
+    
+        // Obtener el número de página de la URL o usar 1 por defecto
+        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+    
+        // Calcular el desplazamiento (offset) basado en la página
+        $offset = ($page - 1) * $limit;
+    
+        // Consulta SQL modificada para la paginación
+        $sentencia = $conexion->prepare("SELECT * FROM pacientes LIMIT ? OFFSET ?");
+        $sentencia->bind_param('ii', $limit, $offset);
+    
+        $sentencia->execute();
+    
+        $resultado = $sentencia->get_result();
+    
         if ($resultado->num_rows > 0) {
-
             $fila = $resultado->fetch_all(MYSQLI_ASSOC);
-
-            echo json_encode(['data' => $fila], JSON_UNESCAPED_UNICODE);
-
+    
+            // Devolver datos con información de paginación
+            echo json_encode([
+                'data' => $fila,
+                'page' => $page,
+                'limit' => $limit,
+                'total' => $resultado->num_rows // Total de registros obtenidos en esta página
+            ], JSON_UNESCAPED_UNICODE);
         } else {
-
             echo json_encode(['error' => 'No se encontraron resultados.'], JSON_UNESCAPED_UNICODE);
         }
+    
+        $sentencia->close();
     }
 }
 
